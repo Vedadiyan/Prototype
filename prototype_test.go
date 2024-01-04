@@ -8,7 +8,9 @@ import (
 func TestUnmarshall(t *testing.T) {
 	const input = `
 	{
-		"value": "OK"
+		"Test":  {
+			"value": "ok"
+		}
 	}
 	`
 	mapper := make(map[string]any)

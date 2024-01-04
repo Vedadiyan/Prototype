@@ -4,13 +4,26 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	_ "unsafe"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type (
-	Kind int
+	Kind                int
+	FieldDescriptorKind any
+	ProtobufType        interface {
+		Get(FieldDescriptorKind) protoreflect.Value
+		Mutable(FieldDescriptorKind) protoreflect.Value
+		Set(FieldDescriptorKind, protoreflect.Value)
+	}
+	MapType struct {
+		Map protoreflect.Map
+	}
+	MessageType struct {
+		Message protoreflect.Message
+	}
 )
 
 const (
@@ -55,11 +68,31 @@ const (
 )
 
 var (
-	_handlers map[Kind]func(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) error
+	_handlers map[Kind]func(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) error
 )
 
+func (mapMessage MapType) Get(f FieldDescriptorKind) protoreflect.Value {
+	return mapMessage.Map.Get(f.(protoreflect.MapKey))
+}
+func (mapMessage MapType) Mutable(f FieldDescriptorKind) protoreflect.Value {
+	return mapMessage.Map.Mutable(f.(protoreflect.MapKey))
+}
+func (mapMessage MapType) Set(f FieldDescriptorKind, v protoreflect.Value) {
+	mapMessage.Map.Set(f.(protoreflect.MapKey), v)
+}
+
+func (messageType MessageType) Get(f FieldDescriptorKind) protoreflect.Value {
+	return messageType.Message.Get(f.(protoreflect.FieldDescriptor))
+}
+func (messageType MessageType) Mutable(f FieldDescriptorKind) protoreflect.Value {
+	return messageType.Message.Mutable(f.(protoreflect.FieldDescriptor))
+}
+func (messageType MessageType) Set(f FieldDescriptorKind, v protoreflect.Value) {
+	messageType.Message.Set(f.(protoreflect.FieldDescriptor), v)
+}
+
 func init() {
-	_handlers = make(map[Kind]func(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) error)
+	_handlers = make(map[Kind]func(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) error)
 	_handlers[DoubleKind] = Double
 	_handlers[FloatKind] = Float
 	_handlers[Int64Kind] = Int64
@@ -111,7 +144,7 @@ func Protect(err *error) {
 	}
 }
 
-func Double(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Double(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -129,7 +162,7 @@ func Double(data map[string]any, field protoreflect.FieldDescriptor, reflect pro
 	return nil
 }
 
-func DoubleList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func DoubleList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -155,7 +188,7 @@ func DoubleList(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
-func Float(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Float(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -173,7 +206,7 @@ func Float(data map[string]any, field protoreflect.FieldDescriptor, reflect prot
 	return nil
 }
 
-func FloatList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func FloatList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -199,7 +232,7 @@ func FloatList(data map[string]any, field protoreflect.FieldDescriptor, reflect 
 	return nil
 }
 
-func Int64(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Int64(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -217,7 +250,7 @@ func Int64(data map[string]any, field protoreflect.FieldDescriptor, reflect prot
 	return nil
 }
 
-func Int64List(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Int64List(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -243,7 +276,7 @@ func Int64List(data map[string]any, field protoreflect.FieldDescriptor, reflect 
 	return nil
 }
 
-func UInt64(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func UInt64(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -261,7 +294,7 @@ func UInt64(data map[string]any, field protoreflect.FieldDescriptor, reflect pro
 	return nil
 }
 
-func UInt64List(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func UInt64List(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -287,7 +320,7 @@ func UInt64List(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
-func Int32(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Int32(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -305,7 +338,7 @@ func Int32(data map[string]any, field protoreflect.FieldDescriptor, reflect prot
 	return nil
 }
 
-func Int32List(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Int32List(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -331,7 +364,7 @@ func Int32List(data map[string]any, field protoreflect.FieldDescriptor, reflect 
 	return nil
 }
 
-func UInt32(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func UInt32(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -349,7 +382,7 @@ func UInt32(data map[string]any, field protoreflect.FieldDescriptor, reflect pro
 	return nil
 }
 
-func UInt32List(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func UInt32List(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -375,7 +408,7 @@ func UInt32List(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
-func Bool(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Bool(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -389,7 +422,7 @@ func Bool(data map[string]any, field protoreflect.FieldDescriptor, reflect proto
 	return nil
 }
 
-func BoolList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func BoolList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -411,11 +444,11 @@ func BoolList(data map[string]any, field protoreflect.FieldDescriptor, reflect p
 	return nil
 }
 
-func Group(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Group(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	panic("not implemented")
 }
 
-func Enum(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Enum(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -428,7 +461,7 @@ func Enum(data map[string]any, field protoreflect.FieldDescriptor, reflect proto
 	if !ok {
 		return fmt.Errorf("expected string by found %T", value)
 	}
-	enum := field.Enum().Values().ByName(protoreflect.Name(str))
+	enum := field.(protoreflect.FieldDescriptor).Enum().Values().ByName(protoreflect.Name(str))
 	if enum == nil {
 		return nil
 	}
@@ -436,7 +469,7 @@ func Enum(data map[string]any, field protoreflect.FieldDescriptor, reflect proto
 	return nil
 }
 
-func EnumList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func EnumList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -455,7 +488,7 @@ func EnumList(data map[string]any, field protoreflect.FieldDescriptor, reflect p
 		if !ok {
 			return fmt.Errorf("expected string by found %T", value)
 		}
-		enum := field.Enum().Values().ByName(protoreflect.Name(str))
+		enum := field.(protoreflect.FieldDescriptor).Enum().Values().ByName(protoreflect.Name(str))
 		if enum == nil {
 			return nil
 		}
@@ -465,7 +498,7 @@ func EnumList(data map[string]any, field protoreflect.FieldDescriptor, reflect p
 	return nil
 }
 
-func Bytes(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Bytes(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -482,7 +515,7 @@ func Bytes(data map[string]any, field protoreflect.FieldDescriptor, reflect prot
 	return nil
 }
 
-func BytesList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func BytesList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -507,7 +540,7 @@ func BytesList(data map[string]any, field protoreflect.FieldDescriptor, reflect 
 	return nil
 }
 
-func String(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func String(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -521,7 +554,7 @@ func String(data map[string]any, field protoreflect.FieldDescriptor, reflect pro
 	return nil
 }
 
-func StringList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func StringList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -543,7 +576,7 @@ func StringList(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
-func Struct(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Struct(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, err := structpb.NewStruct(data)
 	if err != nil {
@@ -553,7 +586,7 @@ func Struct(data map[string]any, field protoreflect.FieldDescriptor, reflect pro
 	return nil
 }
 
-func Message(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func Message(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -570,7 +603,7 @@ func Message(data map[string]any, field protoreflect.FieldDescriptor, reflect pr
 	return Unmarshal(valueRaw, message)
 }
 
-func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func MessageMap(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -585,6 +618,7 @@ func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	}
 	message := reflect.Mutable(field).Map()
 	for key, value := range valueRaw {
+		field := field.(protoreflect.FieldDescriptor)
 		kind := GetKind(field.MapValue())
 		switch kind {
 		case MessageKind:
@@ -599,7 +633,7 @@ func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect
 			}
 		default:
 			{
-				message.Set(protoreflect.MapKey(protoreflect.ValueOf(key)), protoreflect.ValueOf(value))
+				_handlers[GetKind(field.MapValue())](valueRaw, protoreflect.MapKey(protoreflect.ValueOf(key)), MapType{Map: message})
 			}
 		}
 	}
@@ -607,7 +641,7 @@ func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
-func MessageList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+func MessageList(data map[string]any, field FieldDescriptorKind, reflect ProtobufType) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
 	if !ok {
@@ -638,7 +672,8 @@ func MessageList(data map[string]any, field protoreflect.FieldDescriptor, reflec
 	return nil
 }
 
-func GetKind(field protoreflect.FieldDescriptor) Kind {
+func GetKind(f FieldDescriptorKind) Kind {
+	field := f.(protoreflect.FieldDescriptor)
 	if field.IsList() {
 		return Kind(field.Kind() + 100)
 	}
@@ -657,11 +692,24 @@ func GetKind(field protoreflect.FieldDescriptor) Kind {
 	return Kind(field.Kind())
 }
 
-func GetFieldName(field protoreflect.FieldDescriptor) string {
-	if len(field.JSONName()) != 0 {
-		return field.JSONName()
+func GetFieldName(field FieldDescriptorKind) string {
+	switch field := field.(type) {
+	case protoreflect.MapKey:
+		{
+			return field.Value().String()
+		}
+	case protoreflect.FieldDescriptor:
+		{
+			if len(field.JSONName()) != 0 {
+				return field.JSONName()
+			}
+			return field.TextName()
+		}
+	default:
+		{
+			panic("")
+		}
 	}
-	return field.TextName()
 }
 
 func Unmarshal(data map[string]any, message any) error {
@@ -672,7 +720,7 @@ func Unmarshal(data map[string]any, message any) error {
 	for i := 0; i < fields.Len(); i++ {
 		field := fields.Get(i)
 		kind := GetKind(field)
-		err := _handlers[kind](data, field, reflect)
+		err := _handlers[kind](data, field, MessageType{Message: reflect})
 		if err != nil {
 			return err
 		}

@@ -8,5 +8,5 @@ enum TestEnum {
 }
 
 message TestMessage {
-    TestEnum value = 1;
+    map<string, string> Test = 1;
 }
