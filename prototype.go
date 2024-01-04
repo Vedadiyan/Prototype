@@ -1,4 +1,4 @@
-package main
+package protoutil
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type (
@@ -49,7 +50,8 @@ const (
 	ListOfSint32Kind   Kind = 116
 	ListOfSfixed64Kind Kind = 117
 	ListOfSint64Kind   Kind = 118
-	Map                Kind = 119
+	MapKind            Kind = 119
+	StructKind         Kind = 120
 )
 
 var (
@@ -95,7 +97,9 @@ func init() {
 	_handlers[ListOfSint32Kind] = Int32List
 	_handlers[ListOfSfixed64Kind] = Int64List
 	_handlers[ListOfSint64Kind] = Int64List
-	_handlers[Map] = MessageMap
+	_handlers[MapKind] = MessageMap
+
+	_handlers[StructKind] = Struct
 }
 
 func Protect(err *error) {
@@ -493,6 +497,16 @@ func StringList(data map[string]any, field protoreflect.FieldDescriptor, reflect
 	return nil
 }
 
+func Struct(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+	defer Protect(&error)
+	value, err := structpb.NewStruct(data)
+	if err != nil {
+		return nil
+	}
+	reflect.Set(field, protoreflect.ValueOfMessage(value.ProtoReflect()))
+	return nil
+}
+
 func Message(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
 	defer Protect(&error)
 	value, ok := data[GetFieldName(field)]
@@ -506,8 +520,8 @@ func Message(data map[string]any, field protoreflect.FieldDescriptor, reflect pr
 	if !ok {
 		return fmt.Errorf("expected object by found %T", value)
 	}
-	message := reflect.Mutable(field).Interface()
-	return unmarshal(valueRaw, message)
+	message := reflect.Mutable(field).Message().Interface()
+	return Unmarshal(valueRaw, message)
 }
 
 func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
@@ -531,7 +545,7 @@ func MessageMap(data map[string]any, field protoreflect.FieldDescriptor, reflect
 			{
 				val := message.NewValue()
 				inst := val.Message().Interface()
-				err := unmarshal(value.(map[string]any), inst)
+				err := Unmarshal(value.(map[string]any), inst)
 				if err != nil {
 					return err
 				}
@@ -568,7 +582,7 @@ func MessageList(data map[string]any, field protoreflect.FieldDescriptor, reflec
 		}
 		elem := reflect.Get(field).List().NewElement()
 		message := elem.Message().Interface()
-		err := unmarshal(valueRaw, message)
+		err := Unmarshal(valueRaw, message)
 		if err != nil {
 			return nil
 		}
@@ -583,7 +597,16 @@ func GetKind(field protoreflect.FieldDescriptor) Kind {
 		return Kind(field.Kind() + 100)
 	}
 	if field.IsMap() {
-		return Map
+		return MapKind
+	}
+	message := field.Message()
+	if message != nil {
+		switch message.FullName() {
+		case "google.protobuf.Struct":
+			{
+				return StructKind
+			}
+		}
 	}
 	return Kind(field.Kind())
 }
@@ -595,16 +618,7 @@ func GetFieldName(field protoreflect.FieldDescriptor) string {
 	return field.TextName()
 }
 
-func Unmarshal[T any](data map[string]any) (*T, error) {
-	inst := new(T)
-	err := unmarshal(data, inst)
-	if err != nil {
-		return new(T), err
-	}
-	return inst, nil
-}
-
-func unmarshal(data map[string]any, message any) error {
+func Unmarshal(data map[string]any, message any) error {
 	p := message.(protoreflect.ProtoMessage)
 	reflect := p.ProtoReflect()
 	descriptor := reflect.Descriptor()
