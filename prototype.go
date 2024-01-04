@@ -633,7 +633,10 @@ func MessageMap(data map[string]any, field FieldDescriptorKind, reflect Protobuf
 			}
 		default:
 			{
-				_handlers[GetKind(field.MapValue())](valueRaw, protoreflect.MapKey(protoreflect.ValueOf(key)), MapType{Map: message})
+				err := _handlers[GetKind(field.MapValue())](valueRaw, protoreflect.MapKey(protoreflect.ValueOf(key)), MapType{Map: message})
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
