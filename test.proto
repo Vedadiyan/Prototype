@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "test/test";
+
+enum TestEnum {
+    NONE = 0;
+    OK = 1;
+}
+
+message TestMessage {
+    TestEnum value = 1;
+}

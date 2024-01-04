@@ -92,7 +92,7 @@ func init() {
 	_handlers[ListOfMessageKind] = MessageList
 	_handlers[ListOfBytesKind] = BytesList
 	_handlers[ListOfUint32Kind] = UInt32List
-	_handlers[ListOfEnumKind] = Enum
+	_handlers[ListOfEnumKind] = EnumList
 	_handlers[ListOfSfixed32Kind] = Int32List
 	_handlers[ListOfSint32Kind] = Int32List
 	_handlers[ListOfSfixed64Kind] = Int64List
@@ -416,7 +416,53 @@ func Group(data map[string]any, field protoreflect.FieldDescriptor, reflect prot
 }
 
 func Enum(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
-	panic("not implemented")
+	defer Protect(&error)
+	value, ok := data[GetFieldName(field)]
+	if !ok {
+		return nil
+	}
+	if value == nil {
+		return nil
+	}
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("expected string by found %T", value)
+	}
+	enum := field.Enum().Values().ByName(protoreflect.Name(str))
+	if enum == nil {
+		return nil
+	}
+	reflect.Set(field, protoreflect.ValueOf(enum.Number()))
+	return nil
+}
+
+func EnumList(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
+	defer Protect(&error)
+	value, ok := data[GetFieldName(field)]
+	if !ok {
+		return nil
+	}
+	if value == nil {
+		return nil
+	}
+	list, ok := value.([]any)
+	if !ok {
+		return fmt.Errorf("expected list by found %T", value)
+	}
+	v := reflect.Mutable(field).List()
+	for _, item := range list {
+		str, ok := item.(string)
+		if !ok {
+			return fmt.Errorf("expected string by found %T", value)
+		}
+		enum := field.Enum().Values().ByName(protoreflect.Name(str))
+		if enum == nil {
+			return nil
+		}
+		v.Append(protoreflect.ValueOf(enum.Number()))
+	}
+	reflect.Set(field, protoreflect.ValueOf(v))
+	return nil
 }
 
 func Bytes(data map[string]any, field protoreflect.FieldDescriptor, reflect protoreflect.Message) (error error) {
